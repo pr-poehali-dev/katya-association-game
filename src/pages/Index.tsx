@@ -331,7 +331,7 @@ export default function Index() {
 
         {section === "hundredToOne" && (
           <div className="animate-fade-in">
-            <HundredToOne onScore={addScore} />
+            <HundredToOne />
           </div>
         )}
 
