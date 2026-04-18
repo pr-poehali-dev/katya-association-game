@@ -8,192 +8,322 @@ interface Person {
   association: string;
   name: string;
   emoji: string;
-  revealed: boolean;
+  nameRevealed: boolean;
 }
 
 const PEOPLE: Person[] = [
-  { id: 1,  emoji: "💘", association: "любимка краш номер 1",       name: "Яша",              revealed: false },
-  { id: 2,  emoji: "🧠", association: "гений из моего детства",      name: "Маша",             revealed: false },
-  { id: 3,  emoji: "🎮", association: "повелитель кс",               name: "Катя С",           revealed: false },
-  { id: 4,  emoji: "🏎️", association: "формула 1",                   name: "Саша Кандаурова",  revealed: false },
-  { id: 5,  emoji: "🎬", association: "блогер",                      name: "Руслан",           revealed: false },
-  { id: 6,  emoji: "🐕", association: "собаковед",                   name: "Ира Серёгина",     revealed: false },
-  { id: 7,  emoji: "🎉", association: "душа коллектива",             name: "Костя",            revealed: false },
-  { id: 8,  emoji: "👩‍⚕️", association: "хороший доктор",            name: "Алиса",            revealed: false },
-  { id: 9,  emoji: "💻", association: "мегамозг айтишника",          name: "Женя",             revealed: false },
-  { id: 10, emoji: "🤝", association: "своя в доску",                name: "Даша Дахова",      revealed: false },
-  { id: 11, emoji: "😂", association: "клёвая шутница",              name: "Диана",            revealed: false },
-  { id: 12, emoji: "🏡", association: "хозяюшка",                    name: "Таня Починок",     revealed: false },
-  { id: 13, emoji: "❤️", association: "воплощение любви",            name: "Мама Галина",      revealed: false },
-  { id: 14, emoji: "💃", association: "движ Париж танцор",           name: "Лена",             revealed: false },
-  { id: 15, emoji: "🤍", association: "доброе сердце",               name: "Алия (сестра Яши)", revealed: false },
-  { id: 16, emoji: "🤣", association: "генератор шуток",             name: "Анюта Германия",   revealed: false },
+  { id: 1,  emoji: "💘", association: "любимка краш номер 1",       name: "Яша",               nameRevealed: false },
+  { id: 2,  emoji: "🧠", association: "гений из моего детства",      name: "Маша",              nameRevealed: false },
+  { id: 3,  emoji: "🎮", association: "повелитель кс",               name: "Катя С",            nameRevealed: false },
+  { id: 4,  emoji: "🏎️", association: "формула 1",                   name: "Саша Кандаурова",   nameRevealed: false },
+  { id: 5,  emoji: "🎬", association: "блогер",                      name: "Руслан",            nameRevealed: false },
+  { id: 6,  emoji: "🐕", association: "собаковед",                   name: "Ира Серёгина",      nameRevealed: false },
+  { id: 7,  emoji: "🎉", association: "душа коллектива",             name: "Костя",             nameRevealed: false },
+  { id: 8,  emoji: "👩‍⚕️", association: "хороший доктор",            name: "Алиса",             nameRevealed: false },
+  { id: 9,  emoji: "💻", association: "мегамозг айтишника",          name: "Женя",              nameRevealed: false },
+  { id: 10, emoji: "🤝", association: "своя в доску",                name: "Даша Дахова",       nameRevealed: false },
+  { id: 11, emoji: "😂", association: "клёвая шутница",              name: "Диана",             nameRevealed: false },
+  { id: 12, emoji: "🏡", association: "хозяюшка",                    name: "Таня Починок",      nameRevealed: false },
+  { id: 13, emoji: "❤️", association: "воплощение любви",            name: "Мама Галина",       nameRevealed: false },
+  { id: 14, emoji: "💃", association: "движ Париж танцор",           name: "Лена",              nameRevealed: false },
+  { id: 15, emoji: "🤍", association: "доброе сердце",               name: "Алия (сестра Яши)", nameRevealed: false },
+  { id: 16, emoji: "🤣", association: "генератор шуток",             name: "Анюта Германия",    nameRevealed: false },
 ];
 
-interface Props {
-  onScore: (pts: number) => void;
+const PLAYER_EMOJIS = ["🦁", "🦊", "🐺", "🐯", "🦄", "🐻", "🐸", "🦋"];
+
+interface Player {
+  name: string;
+  score: number;
+  emoji: string;
 }
 
-export default function GuessWho({ onScore }: Props) {
+export default function GuessWho() {
   const [people, setPeople] = useState<Person[]>(PEOPLE.map(p => ({ ...p })));
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [showName, setShowName] = useState(false);
   const [confetti, setConfetti] = useState(false);
+
+  // Players state — local to this game
+  const [players, setPlayers] = useState<Player[]>([
+    { name: "Игрок 1", score: 0, emoji: "🦁" },
+    { name: "Игрок 2", score: 0, emoji: "🦊" },
+  ]);
+  const [showPlayers, setShowPlayers] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editScore, setEditScore] = useState("");
+
+  // Score award modal
+  const [awardModal, setAwardModal] = useState<{ personId: number } | null>(null);
+  const [awardPts, setAwardPts] = useState("5");
+  const [awardPlayerIdx, setAwardPlayerIdx] = useState(0);
   const [scorePopup, setScorePopup] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<"correct" | "wrong" | null>(null);
 
-  const person = people[currentIdx];
-
-  const handleRevealName = () => {
+  const revealName = (id: number) => {
     sounds.reveal();
-    setShowName(true);
+    setPeople(prev => prev.map(p => p.id === id ? { ...p, nameRevealed: true } : p));
   };
 
-  const handleCorrect = () => {
-    sounds.correct();
-    setFeedback("correct");
-    setConfetti(true);
-    setScorePopup("+10 очков!");
-    onScore(10);
-    const updated = [...people];
-    updated[currentIdx].revealed = true;
-    setPeople(updated);
-    setTimeout(() => {
-      setFeedback(null);
-      setScorePopup(null);
-      setConfetti(false);
-    }, 2000);
+  const openAward = (personId: number) => {
+    setAwardModal({ personId });
+    setAwardPts("5");
+    setAwardPlayerIdx(0);
   };
 
-  const handleWrong = () => {
-    sounds.wrong();
-    setFeedback("wrong");
-    setTimeout(() => setFeedback(null), 800);
+  const confirmAward = () => {
+    const pts = parseInt(awardPts) || 0;
+    if (pts > 0) {
+      sounds.correct();
+      setPlayers(prev => prev.map((p, i) => i === awardPlayerIdx ? { ...p, score: p.score + pts } : p));
+      setScorePopup(`+${pts} очков → ${players[awardPlayerIdx]?.name}!`);
+      setConfetti(true);
+      setTimeout(() => { setScorePopup(null); setConfetti(false); }, 2000);
+    }
+    setAwardModal(null);
   };
 
-  const goTo = (idx: number) => {
+  const addPlayer = () => {
+    if (players.length >= 8) return;
     sounds.click();
-    setCurrentIdx(idx);
-    setShowName(false);
-    setFeedback(null);
+    const emoji = PLAYER_EMOJIS[players.length] || "🎮";
+    setPlayers(prev => [...prev, { name: `Игрок ${prev.length + 1}`, score: 0, emoji }]);
   };
 
-  const next = () => { if (currentIdx < people.length - 1) goTo(currentIdx + 1); };
-  const prev = () => { if (currentIdx > 0) goTo(currentIdx - 1); };
+  const removePlayer = (idx: number) => {
+    sounds.click();
+    setPlayers(prev => prev.filter((_, i) => i !== idx));
+    if (awardPlayerIdx >= idx && awardPlayerIdx > 0) setAwardPlayerIdx(prev => prev - 1);
+  };
 
-  const guessedCount = people.filter(p => p.revealed).length;
+  const startEditPlayer = (idx: number) => {
+    setEditingIdx(idx);
+    setEditName(players[idx].name);
+    setEditScore(String(players[idx].score));
+  };
+
+  const saveEditPlayer = () => {
+    if (editingIdx === null) return;
+    setPlayers(prev => prev.map((p, i) =>
+      i === editingIdx
+        ? { ...p, name: editName.trim() || p.name, score: parseInt(editScore) || 0 }
+        : p
+    ));
+    setEditingIdx(null);
+  };
+
+  const revealedCount = people.filter(p => p.nameRevealed).length;
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-3xl mx-auto">
       <Confetti active={confetti} />
 
       {/* Score popup */}
       {scorePopup && (
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none">
-          <div className="font-pacifico text-6xl neon-yellow animate-bounce-in">{scorePopup}</div>
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none text-center">
+          <div className="font-pacifico text-5xl neon-yellow animate-bounce-in">{scorePopup}</div>
+        </div>
+      )}
+
+      {/* Award modal */}
+      {awardModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="card-party p-8 max-w-sm w-full mx-4 animate-bounce-in">
+            <h3 className="font-pacifico text-2xl neon-yellow text-center mb-6">Начислить очки</h3>
+
+            <div className="mb-4">
+              <div className="text-white/50 font-montserrat text-xs uppercase tracking-widest mb-2">Игрок</div>
+              <div className="grid grid-cols-2 gap-2">
+                {players.map((p, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setAwardPlayerIdx(i)}
+                    className={`flex items-center gap-2 p-3 rounded-xl transition-all font-montserrat text-sm font-semibold ${
+                      i === awardPlayerIdx ? "bg-party-pink/40 ring-1 ring-party-pink text-white" : "bg-white/10 text-white/60 hover:bg-white/20"
+                    }`}
+                  >
+                    <span>{p.emoji}</span> {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <div className="text-white/50 font-montserrat text-xs uppercase tracking-widest mb-2">Очки</div>
+              <div className="flex gap-2">
+                {[1, 3, 5, 10].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setAwardPts(String(n))}
+                    className={`flex-1 py-2 rounded-xl font-montserrat font-bold transition-all ${
+                      awardPts === String(n) ? "bg-party-yellow text-black" : "bg-white/10 text-white hover:bg-white/20"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  value={awardPts}
+                  onChange={e => setAwardPts(e.target.value)}
+                  className="w-16 bg-white/10 text-white font-montserrat font-bold text-center rounded-xl border border-white/20 focus:border-party-pink outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button className="btn-party btn-success" onClick={confirmAward}>
+                <Icon name="Check" size={18} /> Начислить
+              </button>
+              <button
+                className="btn-party"
+                style={{ background: "rgba(255,255,255,0.1)" }}
+                onClick={() => setAwardModal(null)}
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Header */}
-      <div className="text-center mb-8">
-        <h2 className="font-pacifico text-4xl neon-pink mb-2">Угадай кто!</h2>
-        <p className="text-white/60 font-montserrat text-sm">
-          {currentIdx + 1} из {people.length} • угадано {guessedCount}/{people.length}
-        </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="font-pacifico text-4xl neon-pink">Угадай кто!</h2>
+          <p className="text-white/50 font-montserrat text-sm mt-1">
+            открыто {revealedCount} из {people.length}
+          </p>
+        </div>
+        <button
+          onClick={() => { setShowPlayers(!showPlayers); sounds.click(); }}
+          className="btn-party text-sm flex items-center gap-2"
+          style={{ background: showPlayers ? "rgba(255,255,255,0.2)" : "linear-gradient(135deg,#7B2FFF,#FF1A75)", padding: "0.6rem 1.2rem" }}
+        >
+          <Icon name="Users" size={16} /> Игроки
+        </button>
       </div>
 
-      {/* Dots navigation */}
-      <div className="flex flex-wrap gap-2 justify-center mb-6">
-        {people.map((p, i) => (
-          <button
-            key={p.id}
-            onClick={() => goTo(i)}
-            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              i === currentIdx
-                ? "bg-party-pink scale-150"
-                : p.revealed
-                ? "bg-party-green"
-                : "bg-white/20 hover:bg-white/40"
+      {/* Players panel */}
+      {showPlayers && (
+        <div className="card-party p-5 mb-6 animate-fade-in">
+          <div className="flex items-center justify-between mb-4">
+            <span className="font-montserrat font-bold text-white text-sm uppercase tracking-widest">Игроки и очки</span>
+            <button
+              onClick={addPlayer}
+              disabled={players.length >= 8}
+              className="btn-party text-xs disabled:opacity-40"
+              style={{ padding: "0.4rem 1rem", background: "linear-gradient(135deg,#00E676,#00BCD4)" }}
+            >
+              <Icon name="Plus" size={14} /> Добавить
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {players.map((p, i) => (
+              <div key={i}>
+                {editingIdx === i ? (
+                  <div className="bg-white/10 rounded-xl p-3 space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        autoFocus
+                        value={editName}
+                        onChange={e => setEditName(e.target.value)}
+                        placeholder="Имя"
+                        className="flex-1 bg-white/10 text-white font-montserrat text-sm rounded-lg px-3 py-2 outline-none border border-white/20 focus:border-party-pink"
+                      />
+                      <input
+                        type="number"
+                        value={editScore}
+                        onChange={e => setEditScore(e.target.value)}
+                        placeholder="Очки"
+                        className="w-20 bg-white/10 text-white font-montserrat text-sm rounded-lg px-3 py-2 outline-none border border-white/20 focus:border-party-yellow text-center"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="btn-party btn-success flex-1 text-xs" style={{ padding: "0.4rem" }} onClick={saveEditPlayer}>
+                        <Icon name="Check" size={14} /> Сохранить
+                      </button>
+                      <button className="btn-party flex-1 text-xs" style={{ padding: "0.4rem", background: "rgba(255,255,255,0.1)" }} onClick={() => setEditingIdx(null)}>
+                        Отмена
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 bg-white/5 rounded-xl px-3 py-2">
+                    <span className="text-xl">{p.emoji}</span>
+                    <span className="font-montserrat font-semibold text-white flex-1 text-sm">{p.name}</span>
+                    <span className="score-badge text-sm font-black">{p.score}</span>
+                    <button onClick={() => startEditPlayer(i)} className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white transition-all">
+                      <Icon name="Pencil" size={14} />
+                    </button>
+                    <button onClick={() => removePlayer(i)} className="p-1.5 hover:bg-red-500/20 rounded-lg text-white/30 hover:text-red-400 transition-all">
+                      <Icon name="Trash2" size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All cards grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+        {people.map(person => (
+          <div
+            key={person.id}
+            className={`card-party p-4 text-center transition-all duration-300 ${
+              person.nameRevealed ? "ring-1 ring-party-green/50" : "hover:scale-[1.02] hover:ring-1 hover:ring-white/20"
             }`}
-          />
+          >
+            <div className="text-3xl mb-2">{person.emoji}</div>
+            <div className="font-montserrat text-white text-sm font-semibold leading-snug mb-3">
+              {person.association}
+            </div>
+
+            {person.nameRevealed ? (
+              <>
+                <div className="font-pacifico text-base neon-yellow mb-3 animate-bounce-in">
+                  {person.name}
+                </div>
+                <button
+                  onClick={() => openAward(person.id)}
+                  className="btn-party w-full text-xs"
+                  style={{ padding: "0.4rem 0.75rem", background: "linear-gradient(135deg,#FFD700,#FF8F00)", color: "#1a0030" }}
+                >
+                  <Icon name="Star" size={12} /> +очки
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => revealName(person.id)}
+                className="btn-party w-full text-xs"
+                style={{ padding: "0.4rem 0.75rem", background: "linear-gradient(135deg,#7B2FFF,#00E5FF)" }}
+              >
+                <Icon name="Eye" size={12} /> Открыть
+              </button>
+            )}
+          </div>
         ))}
       </div>
 
-      {/* Main card */}
-      <div
-        className={`card-party p-8 transition-all duration-300 ${
-          feedback === "correct"
-            ? "ring-4 ring-green-400"
-            : feedback === "wrong"
-            ? "ring-4 ring-red-500"
-            : ""
-        }`}
-      >
-        {/* Association — always visible */}
-        <div className="text-center mb-8">
-          <div className="text-6xl mb-5 animate-float">{person.emoji}</div>
-          <div className="text-white/40 font-montserrat text-xs uppercase tracking-widest mb-3">
-            Ассоциация
+      {/* Scoreboard at bottom */}
+      {players.length > 0 && (
+        <div className="card-party p-5 mt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Icon name="Trophy" size={18} className="text-party-yellow" />
+            <span className="font-montserrat font-bold text-white text-sm">Счёт</span>
           </div>
-          <div className="font-pacifico text-3xl sm:text-4xl text-white leading-tight">
-            {person.association}
+          <div className="flex flex-wrap gap-3">
+            {[...players].sort((a, b) => b.score - a.score).map((p, i) => (
+              <div key={p.name + i} className={`flex items-center gap-2 px-4 py-2 rounded-xl ${i === 0 ? "bg-party-yellow/20 ring-1 ring-party-yellow/40" : "bg-white/5"}`}>
+                <span>{p.emoji}</span>
+                <span className="font-montserrat text-white text-sm font-semibold">{p.name}</span>
+                <span className={`font-pacifico text-lg ${i === 0 ? "neon-yellow" : "neon-cyan"}`}>{p.score}</span>
+              </div>
+            ))}
           </div>
         </div>
-
-        {/* Name reveal */}
-        {showName ? (
-          <div className="animate-bounce-in text-center bg-white/10 rounded-2xl p-6 mb-6">
-            <div className="text-white/40 font-montserrat text-xs uppercase tracking-widest mb-2">Это...</div>
-            <div className="font-pacifico text-4xl neon-yellow">{person.name}</div>
-          </div>
-        ) : (
-          <button
-            className="btn-party w-full mb-6"
-            style={{ background: "linear-gradient(135deg, #7B2FFF, #00E5FF)" }}
-            onClick={handleRevealName}
-          >
-            <Icon name="Eye" size={18} /> Открыть имя
-          </button>
-        )}
-
-        {/* Score actions — show after name revealed */}
-        {showName && !person.revealed && (
-          <div className="grid grid-cols-2 gap-3">
-            <button className="btn-party btn-success" onClick={handleCorrect}>
-              <Icon name="Check" size={18} /> Угадали!
-            </button>
-            <button className="btn-party btn-danger" onClick={handleWrong}>
-              <Icon name="X" size={18} /> Не угадали
-            </button>
-          </div>
-        )}
-
-        {person.revealed && (
-          <div className="text-center">
-            <span className="text-party-green font-montserrat font-bold text-sm">✓ Угадано!</span>
-          </div>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <div className="flex justify-between mt-6">
-        <button
-          onClick={prev}
-          disabled={currentIdx === 0}
-          className="btn-party disabled:opacity-30"
-          style={{ background: "rgba(255,255,255,0.1)", padding: "0.75rem 1.5rem" }}
-        >
-          <Icon name="ChevronLeft" size={20} />
-        </button>
-        <button
-          onClick={next}
-          disabled={currentIdx === people.length - 1}
-          className="btn-party disabled:opacity-30"
-          style={{ background: "rgba(255,255,255,0.1)", padding: "0.75rem 1.5rem" }}
-        >
-          <Icon name="ChevronRight" size={20} />
-        </button>
-      </div>
+      )}
     </div>
   );
 }

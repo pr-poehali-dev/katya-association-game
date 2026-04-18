@@ -319,7 +319,7 @@ export default function Index() {
 
         {section === "guessWho" && (
           <div className="animate-fade-in">
-            <GuessWho onScore={addScore} />
+            <GuessWho />
           </div>
         )}
 
